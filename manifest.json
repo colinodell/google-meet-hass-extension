@@ -1,0 +1,17 @@
+{
+  "name": "Google Meet <=> Home Assistant",
+  "version": "0.1.0",
+  "description": "Updates a Home Assistant entity state with the status of your Google Meet calls",
+  "author": "Colin O'Dell",
+  "homepage_url": "https://github.com/colinodell/google-meet-hass",
+  "manifest_version": 3,
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://meet.google.com/*",
+    "*://*/api/states/*"
+  ],
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  }
+}
