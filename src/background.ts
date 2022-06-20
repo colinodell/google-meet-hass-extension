@@ -1,4 +1,5 @@
 import { loadConfig } from "./config";
+import { setEntityState } from "./hass";
 
 let inMeeting: boolean | null = null;
 
@@ -14,23 +15,10 @@ function updateMeetingStateIfNeeded() {
 function setInMeeting(newValue: boolean) {
     if (inMeeting !== newValue) {
         inMeeting = newValue;
-        setEntityState(newValue);
-    }
-}
-
-function setEntityState(newValue: boolean) {
-    loadConfig().then((config) => {
-        fetch(config.host + "/api/states/" + config.entity_id, {
-            method: "POST",
-            headers: {
-                Authorization: "Bearer " + config.token,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                state: newValue ? "on" : "off",
-            }),
+        loadConfig().then((config) => {
+            setEntityState(config, newValue);
         });
-    });
+    }
 }
 
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
