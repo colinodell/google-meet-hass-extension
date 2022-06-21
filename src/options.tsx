@@ -8,6 +8,7 @@ import {
     Alert,
     Box,
     Button,
+    Divider,
     IconButton,
     InputAdornment,
     Snackbar,
@@ -59,114 +60,128 @@ const Options = () => {
 
     return (
         <>
-            <Stack
-                spacing={2}
-                sx={{
-                    width: 400,
-                }}
-            >
-                <Box>
-                    <TextField
-                        id="host"
-                        name="host"
-                        label="Home Assistant Base URL"
-                        value={config.host}
-                        onChange={(e) =>
-                            setConfig({ ...config, host: e.target.value })
-                        }
-                        helperText="No trailing slashes; ex: http://homeassistant.local"
-                        variant="standard"
-                        fullWidth
-                    />
-                </Box>
-                <Box>
-                    <TextField
-                        id="token"
-                        name="token"
-                        type={showToken ? "text" : "password"}
-                        label="Authorization Token"
-                        value={config.token}
-                        onChange={(e) =>
-                            setConfig({ ...config, token: e.target.value })
-                        }
-                        variant="standard"
-                        fullWidth
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        aria-label="Toggle auth token visibility"
-                                        onClick={() => setShowToken(!showToken)}
-                                        edge="end"
-                                    >
-                                        {showToken ? (
-                                            <Visibility />
-                                        ) : (
-                                            <VisibilityOff />
-                                        )}
-                                    </IconButton>
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                </Box>
-                <Box>
-                    <TextField
-                        id="entity_id"
-                        name="entity_id"
-                        label="Entity ID"
-                        value={config.entity_id}
-                        onChange={(e) =>
-                            setConfig({ ...config, entity_id: e.target.value })
-                        }
-                        variant="standard"
-                        fullWidth
-                    />
-                </Box>
+            <Stack spacing={2}>
                 <Stack direction="row" spacing={2}>
-                    <LoadingButton
-                        size="small"
-                        onClick={test}
-                        loading={testStatus === TestStatus.Testing}
-                        loadingIndicator="Loading..."
-                        variant="outlined"
-                    >
-                        Test
-                    </LoadingButton>
-                    <Button variant="contained" onClick={save}>
-                        Save
-                    </Button>
+                    <img src="icon48.png" alt="Logo" />
+                    <h1>Google Meet &lt;=&gt; Home Assistant Configuration</h1>
                 </Stack>
-                <Box sx={{ height: 50 }}>
-                    <Snackbar
-                        open={saved}
-                        autoHideDuration={6000}
-                        onClose={() => setSaved(false)}
-                    >
-                        <Alert
-                            onClose={() => setSaved(false)}
-                            severity="success"
-                            sx={{ width: "100%" }}
-                        >
-                            Configuration saved!
-                        </Alert>
-                    </Snackbar>
-                    <Snackbar
-                        open={testStatus === TestStatus.Complete}
-                        autoHideDuration={6000}
-                        onClose={() => setTestStatus(TestStatus.NotTested)}
-                    >
-                        <Alert
-                            onClose={() => setTestStatus(TestStatus.NotTested)}
-                            severity={
-                                testResult.success ? "success" : "warning"
+                <Divider />
+                <Stack
+                    spacing={2}
+                    sx={{
+                        width: 400,
+                    }}
+                >
+                    <Box>
+                        <TextField
+                            id="host"
+                            name="host"
+                            label="Home Assistant Base URL"
+                            value={config.host}
+                            onChange={(e) =>
+                                setConfig({ ...config, host: e.target.value })
                             }
-                            sx={{ width: "100%" }}
+                            helperText="No trailing slashes; ex: http://homeassistant.local"
+                            variant="standard"
+                            fullWidth
+                        />
+                    </Box>
+                    <Box>
+                        <TextField
+                            id="token"
+                            name="token"
+                            type={showToken ? "text" : "password"}
+                            label="Authorization Token"
+                            value={config.token}
+                            onChange={(e) =>
+                                setConfig({ ...config, token: e.target.value })
+                            }
+                            variant="standard"
+                            fullWidth
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="Toggle auth token visibility"
+                                            onClick={() =>
+                                                setShowToken(!showToken)
+                                            }
+                                            edge="end"
+                                        >
+                                            {showToken ? (
+                                                <Visibility />
+                                            ) : (
+                                                <VisibilityOff />
+                                            )}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+                    </Box>
+                    <Box>
+                        <TextField
+                            id="entity_id"
+                            name="entity_id"
+                            label="Entity ID"
+                            value={config.entity_id}
+                            onChange={(e) =>
+                                setConfig({
+                                    ...config,
+                                    entity_id: e.target.value,
+                                })
+                            }
+                            variant="standard"
+                            fullWidth
+                        />
+                    </Box>
+                    <Stack direction="row" spacing={2}>
+                        <LoadingButton
+                            size="small"
+                            onClick={test}
+                            loading={testStatus === TestStatus.Testing}
+                            loadingIndicator="Loading..."
+                            variant="outlined"
                         >
-                            {testResult.message}
-                        </Alert>
-                    </Snackbar>
-                </Box>
+                            Test
+                        </LoadingButton>
+                        <Button variant="contained" onClick={save}>
+                            Save
+                        </Button>
+                    </Stack>
+                    <Box sx={{ height: 50 }}>
+                        <Snackbar
+                            open={saved}
+                            autoHideDuration={6000}
+                            onClose={() => setSaved(false)}
+                        >
+                            <Alert
+                                onClose={() => setSaved(false)}
+                                severity="success"
+                                sx={{ width: "100%" }}
+                            >
+                                Configuration saved!
+                            </Alert>
+                        </Snackbar>
+                        <Snackbar
+                            open={testStatus === TestStatus.Complete}
+                            autoHideDuration={6000}
+                            onClose={() => setTestStatus(TestStatus.NotTested)}
+                        >
+                            <Alert
+                                onClose={() =>
+                                    setTestStatus(TestStatus.NotTested)
+                                }
+                                severity={
+                                    testResult.success ? "success" : "warning"
+                                }
+                                sx={{ width: "100%" }}
+                            >
+                                {testResult.message}
+                            </Alert>
+                        </Snackbar>
+                    </Box>
+                </Stack>
             </Stack>
         </>
     );
