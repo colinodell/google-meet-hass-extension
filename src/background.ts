@@ -17,6 +17,10 @@ function setInMeeting(newValue: boolean) {
         inMeeting = newValue;
         loadConfig().then((config) => {
             setEntityState(config, newValue);
+            chrome.action.setBadgeText({ text: newValue ? "mtg" : "" });
+            chrome.action.setBadgeBackgroundColor({
+                color: newValue ? "red" : "green",
+            });
         });
     }
 }
