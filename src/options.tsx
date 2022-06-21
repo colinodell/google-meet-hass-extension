@@ -40,22 +40,24 @@ const Options = () => {
         loadConfig().then(setConfig);
     }, []);
 
-    const test = () => {
+    const test = async () => {
         setTestStatus(TestStatus.Testing);
-        testConnection(config).then((r) => {
-            setTestResult(r);
-            setTestStatus(TestStatus.Complete);
-        });
+
+        const result = await testConnection(config);
+
+        setTestResult(result);
+        setTestStatus(TestStatus.Complete);
     };
 
-    const save = () => {
-        saveConfig(config).then(() => {
-            setSaved(true);
-            const timeout = setTimeout(() => {
-                setSaved(false);
-            }, 1000);
-            return () => clearTimeout(timeout);
-        });
+    const save = async () => {
+        await saveConfig(config);
+
+        setSaved(true);
+
+        const timeout = setTimeout(() => {
+            setSaved(false);
+        }, 1000);
+        return () => clearTimeout(timeout);
     };
 
     return (

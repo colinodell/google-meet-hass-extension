@@ -10,30 +10,10 @@ export const defaultConfig: Config = {
     entity_id: "input_boolean.in_meeting",
 };
 
-export function loadConfig(): Promise<Config> {
-    return new Promise((resolve, reject) => {
-        chrome.storage.sync.get(defaultConfig, function (items) {
-            // convert items to a Config
-            resolve({
-                host: items.host,
-                token: items.token,
-                entity_id: items.entity_id,
-            });
-        });
-    });
+export async function loadConfig(): Promise<Config> {
+    return (await chrome.storage.sync.get(defaultConfig)) as Config;
 }
 
-export function saveConfig(config: Config): Promise<void> {
-    return new Promise((resolve, reject) => {
-        chrome.storage.sync.set(
-            {
-                host: config.host,
-                token: config.token,
-                entity_id: config.entity_id,
-            },
-            function () {
-                resolve();
-            }
-        );
-    });
+export async function saveConfig(config: Config) {
+    await chrome.storage.sync.set(config);
 }
