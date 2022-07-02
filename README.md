@@ -6,6 +6,8 @@ Chrome extension that relays your Google Meet status (in meeting or not) to Home
 
 It works by detecting whether you have any active meetings open in any Chrome tabs, and then toggles an Input Boolean in Home Assistant accordingly which you can use to create automations from.
 
+See [my blog post for more details](https://www.colinodell.com/blog/202207/diy-on-air-light-automation-google-meet-chrome-extension).
+
 ## Installation
 
 1. Download this project
