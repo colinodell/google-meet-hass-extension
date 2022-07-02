@@ -10,7 +10,7 @@ It works by detecting whether you have any active meetings open in any Chrome ta
 
 1. Download this project
 2. Run `yarn install && yarn build` in the repo root
-3. Visit <chrome://extensions> in your browser
+3. Visit [chrome://extensions](chrome://extensions) in your browser
 4. Enable Developer mode
 5. Click on "Load unpacked extension" and select the `dist` folder that yarn built
 
