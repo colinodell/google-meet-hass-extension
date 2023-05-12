@@ -40,7 +40,7 @@ Personally, I've repurposed an older [Adafruit Weather Lamp](https://learn.adafr
 
 ## FAQs
 
-**Can I just download this from the Chrome store?** Not at the moment - I haven't gotten around to creating a pipeline to build and package this yet.  Hopefully soon, though!
+**Can I just download this from the Chrome store?** Yes you can! https://chrome.google.com/webstore/detail/google-meet-%3C%3E-home-assis/gghhlbjdgdemfjmkdfoiebpobebkkccm?hl=en&authuser=0
 
 **Does this support other browsers and/or meeting providers?** No, and I don't have plans to do so, but PRs to add support are certainly welcome!
 
