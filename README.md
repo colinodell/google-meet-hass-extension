@@ -10,6 +10,10 @@ See [my blog post for more details](https://www.colinodell.com/blog/202207/diy-o
 
 ## Installation
 
+You can install this via the Chrome Web Store here: https://chrome.google.com/webstore/detail/google-meet-%3C%3E-home-assis/gghhlbjdgdemfjmkdfoiebpobebkkccm?hl=en&authuser=0
+
+Or you can download and build it yourself:
+
 1. Download this project
 2. Run `yarn install && yarn build` in the repo root
 3. Visit [`chrome://extensions`](chrome://extensions) in your browser
