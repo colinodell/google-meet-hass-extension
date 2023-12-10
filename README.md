@@ -23,7 +23,7 @@ Or you can download and build it yourself:
 ## Configuration
 
 1. [Generate a long-lived access token in Home Assistant](https://www.atomicha.com/home-assistant-how-to-generate-long-lived-access-token-part-1/)
-2. [Create a new input boolean in Home Assistant](https://www.home-assistant.io/integrations/input_boolean/)
+2. [Create a new input boolean in Home Assistant](https://www.home-assistant.io/integrations/input_boolean/). If you use Google Meet on multiple computers or Chrome profiles, create separate input boolean for each one.
 3. Click on the Chrome extension in your browser to open the configuration page and configure your Home Assistant URL, auth token, and input boolean entity ID accordingly.
 
 ![](screenshot.png)
