@@ -1,14 +1,15 @@
 import { Config } from "./config";
 
 export async function setEntityState(config: Config, newValue: boolean) {
-    await fetch(config.host + "/api/states/" + config.entity_id, {
+    const service = newValue ? "turn_on" : "turn_off";
+    await fetch(config.host + "/api/services/switch/" + service, {
         method: "POST",
         headers: {
             Authorization: "Bearer " + config.token,
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            state: newValue ? "on" : "off",
+            entity_id: config.entity_id,
         }),
     });
 }
