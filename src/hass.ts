@@ -1,6 +1,6 @@
 import { Config } from "./config";
 
-export async function setEntityState(config: Config, newValue: boolean) {
+async function setEntityStateAPI(config: Config, newValue: boolean) {
     await fetch(config.host + "/api/states/" + config.entity_id, {
         method: "POST",
         headers: {
@@ -13,12 +13,32 @@ export async function setEntityState(config: Config, newValue: boolean) {
     });
 }
 
+async function setEntityStateWebhook(config: Config, newValue: boolean) {
+    await fetch(config.webhook_url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            value: newValue ? "on" : "off",
+        }),
+    });
+}
+
+export async function setEntityState(config: Config, newValue: boolean) {
+    if (config.method === "webhook") {
+        return await setEntityStateWebhook(config, newValue);
+    } else {
+        return await setEntityStateAPI(config, newValue);
+    }
+}
+
 export interface TestResult {
     success: boolean;
     message: string;
 }
 
-export async function testConnection(config: Config): Promise<TestResult> {
+async function testConnectionAPI(config: Config): Promise<TestResult> {
     try {
         const { status } = await fetch(
             config.host + "/api/states/" + config.entity_id,
@@ -35,7 +55,7 @@ export async function testConnection(config: Config): Promise<TestResult> {
             case 200:
                 return {
                     success: true,
-                    message: "Configuration is valid",
+                    message: "API configuration is valid",
                 };
             case 401:
                 return {
@@ -58,5 +78,44 @@ export async function testConnection(config: Config): Promise<TestResult> {
             success: false,
             message: "Unexpected error: " + error,
         };
+    }
+}
+
+async function testConnectionWebhook(config: Config): Promise<TestResult> {
+    try {
+        const response = await fetch(config.webhook_url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                value: "on",
+            }),
+        });
+
+        if (response.status === 200) {
+            return {
+                success: true,
+                message: "Webhook configuration is valid",
+            };
+        } else {
+            return {
+                success: false,
+                message: "Webhook test failed: HTTP " + response.status,
+            };
+        }
+    } catch (error) {
+        return {
+            success: false,
+            message: "Webhook test failed: " + error,
+        };
+    }
+}
+
+export async function testConnection(config: Config): Promise<TestResult> {
+    if (config.method === "webhook") {
+        return await testConnectionWebhook(config);
+    } else {
+        return await testConnectionAPI(config);
     }
 }
