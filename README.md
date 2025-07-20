@@ -22,9 +22,46 @@ Or you can download and build it yourself:
 
 ## Configuration
 
+The extension now supports two methods for updating Home Assistant entities:
+
+### Method 1: API (Default)
 1. [Generate a long-lived access token in Home Assistant](https://www.atomicha.com/home-assistant-how-to-generate-long-lived-access-token-part-1/)
 2. [Create a new input boolean in Home Assistant](https://www.home-assistant.io/integrations/input_boolean/). If you use Google Meet on multiple computers or Chrome profiles, create separate input boolean for each one.
 3. Click on the Chrome extension in your browser to open the configuration page and configure your Home Assistant URL, auth token, and input boolean entity ID accordingly.
+
+### Method 2: Webhook
+1. [Create a webhook automation in Home Assistant](https://www.home-assistant.io/docs/automation/trigger/#webhook-trigger) that receives JSON data with a `value` field
+2. Configure the webhook to update your desired entity based on the received value (`"on"` or `"off"`)
+3. Click on the Chrome extension in your browser, select "Webhook" as the update method, and enter your webhook URL
+
+**Example webhook automation in Home Assistant:**
+```yaml
+automation:
+  - alias: "Google Meet Status Webhook"
+    trigger:
+      platform: webhook
+      webhook_id: "google_meet_status"
+    variables:
+      meeting_status: "{{ trigger.json.value }}"
+    action:
+      choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ meeting_status == 'on' }}"
+          sequence:
+            - service: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.in_meeting
+        - conditions:
+            - condition: template
+              value_template: "{{ meeting_status == 'off' }}"
+          sequence:
+            - service: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.in_meeting
+```
+
+The webhook URL would be: `https://your-ha-domain.com/api/webhook/google_meet_status`
 
 ![](screenshot.png)
 
