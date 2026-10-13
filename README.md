@@ -69,7 +69,9 @@ The webhook URL would be: `https://your-ha-domain.com/api/webhook/google_meet_st
 Chrome may terminate the extension before its final Home Assistant request
 finishes. To ensure the input boolean does not remain on after the browser
 closes, add the automation below in Home Assistant and replace
-`input_boolean.in_meeting` with the entity configured in the extension. This is
+`input_boolean.in_meeting` with the entity you configured in the extension
+(API method) or the entity your webhook automation turns on and off (webhook
+method, where the extension itself only stores the webhook URL). This is
 required for reliable cleanup with either the API or webhook method.
 
 The extension sends an `on` heartbeat once per minute while a meeting tab is
