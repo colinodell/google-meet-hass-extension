@@ -10,6 +10,7 @@ const getAlarm = jest.fn();
 const createAlarm = jest.fn();
 const addAlarmListener = jest.fn();
 const addStartupListener = jest.fn();
+const addStorageListener = jest.fn();
 
 function loadBackground(
     existingAlarm?: chrome.alarms.Alarm,
@@ -17,10 +18,13 @@ function loadBackground(
 ) {
     jest.resetModules();
     queryTabs.mockReset();
+    loadConfig.mockReset();
+    loadConfig.mockResolvedValue({});
     getAlarm.mockReset();
     createAlarm.mockReset();
     addAlarmListener.mockReset();
     addStartupListener.mockReset();
+    addStorageListener.mockReset();
     setEntityState.mockReset();
     setEntityState.mockResolvedValue(undefined);
     getAlarm.mockImplementation(
@@ -39,10 +43,14 @@ function loadBackground(
             setBadgeBackgroundColor: jest.fn(),
         },
         storage: {
+            onChanged: { addListener: addStorageListener },
             session: {
                 get: jest.fn(async (key: string) => ({
                     [key]: sessionState[key],
                 })),
+                remove: jest.fn(async (key: string) => {
+                    delete sessionState[key];
+                }),
                 set: jest.fn(async (items: Record<string, unknown>) => {
                     Object.assign(sessionState, items);
                 }),
@@ -166,6 +174,70 @@ describe("meeting state reconciliation", () => {
 
         expect(setEntityState).toHaveBeenCalledTimes(1);
         expect(setEntityState).toHaveBeenCalledWith({}, true);
+    });
+
+    it("resends unchanged idle state after settings are saved", async () => {
+        const { requestMeetingStateReconciliation } = loadBackground(
+            undefined,
+            {
+                acceptedMeetingState: false,
+            }
+        );
+        queryTabs.mockResolvedValue([]);
+        await requestMeetingStateReconciliation();
+        expect(setEntityState).not.toHaveBeenCalled();
+
+        loadConfig.mockResolvedValue({ host: "http://new-ha" });
+        addStorageListener.mock.calls[0]?.[0]?.(
+            { host: { newValue: "http://new-ha" } },
+            "sync"
+        );
+        await requestMeetingStateReconciliation();
+        expect(setEntityState).toHaveBeenCalledTimes(1);
+        expect(setEntityState).toHaveBeenCalledWith(
+            { host: "http://new-ha" },
+            false
+        );
+    });
+
+    it("reapplies saved settings after the old request finishes", async () => {
+        const { requestMeetingStateReconciliation } = loadBackground();
+        queryTabs.mockResolvedValue([{ id: 1 }]);
+        let release: () => void = () => undefined;
+        setEntityState.mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    release = resolve;
+                })
+        );
+        const pending = requestMeetingStateReconciliation();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        loadConfig.mockResolvedValue({ token: "replacement" });
+        addStorageListener.mock.calls[0]?.[0]?.(
+            { token: { newValue: "replacement" } },
+            "sync"
+        );
+        release();
+        await pending;
+        expect(setEntityState).toHaveBeenCalledTimes(2);
+        expect(setEntityState).toHaveBeenLastCalledWith(
+            { token: "replacement" },
+            true
+        );
+    });
+
+    it("ignores session-storage and unrelated sync changes", async () => {
+        const { requestMeetingStateReconciliation } = loadBackground(
+            undefined,
+            { acceptedMeetingState: false }
+        );
+        queryTabs.mockResolvedValue([]);
+        const listener =
+            addStorageListener.mock.calls[0]?.[0] ?? (() => undefined);
+        listener({ acceptedMeetingState: { newValue: false } }, "session");
+        listener({ unrelated: { newValue: true } }, "sync");
+        await requestMeetingStateReconciliation();
+        expect(setEntityState).not.toHaveBeenCalled();
     });
 
     it("coalesces concurrent events while one update is in flight", async () => {

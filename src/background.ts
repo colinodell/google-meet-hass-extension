@@ -5,6 +5,7 @@ let wasInMeeting: boolean | null = null;
 let reconciliationPromise: Promise<void> | null = null;
 let reconciliationRequested = false;
 let heartbeatRequested = false;
+let configurationChanged = false;
 
 const heartbeatAlarmName = "meeting-state-heartbeat";
 const acceptedMeetingStateKey = "acceptedMeetingState";
@@ -35,6 +36,13 @@ function updateBadge(isInMeeting: boolean) {
 }
 
 async function reconcileMeetingState(forceSend: boolean) {
+    // Invalidate inside the serialized drain, after any old request completes.
+    // Otherwise its late response could mark the new configuration delivered.
+    if (configurationChanged) {
+        configurationChanged = false;
+        await sessionStorage.remove(acceptedMeetingStateKey);
+        wasInMeeting = null;
+    }
     await restoreAcceptedMeetingState();
 
     const tabs = await chrome.tabs.query({
@@ -119,6 +127,18 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 chrome.tabs.onRemoved.addListener(() => handleReconciliationRequest());
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     if (changeInfo.status === "complete") {
+        handleReconciliationRequest();
+    }
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (
+        areaName === "sync" &&
+        ["host", "token", "entity_id", "method", "webhook_url"].some((key) =>
+            Object.prototype.hasOwnProperty.call(changes, key)
+        )
+    ) {
+        configurationChanged = true;
         handleReconciliationRequest();
     }
 });
