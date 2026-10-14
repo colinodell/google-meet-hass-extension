@@ -21,6 +21,24 @@ Build and install the extension from source:
 If you need a portable build artifact, zip the generated `dist` directory after
 building and load the unpacked contents of that archive.
 
+## Updating without losing settings
+
+Keep the installed unpacked directory at the same absolute path. Do not remove
+and reinstall the extension, or load each version from a new directory: Chrome
+uses the extension ID to keep its settings.
+
+Build the new version, then update the existing installation in place:
+
+```sh
+yarn build
+node scripts/update-unpacked.cjs /absolute/path/to/installed-extension EXTENSION_ID
+```
+
+Copy the ID and directory from the existing extension's Details page. The
+updater checks their identity, preserves its manifest key, and backs up the
+previous code. It does not read or write browser settings, tokens or cookies. Then
+click **Reload** on that same extension in `chrome://extensions`.
+
 ## Configuration
 
 The extension now supports two methods for updating Home Assistant entities:
