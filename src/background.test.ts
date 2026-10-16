@@ -124,6 +124,27 @@ describe("meeting state reconciliation", () => {
         ]);
     });
 
+    it("sends the unchanged observed state after a request fails", async () => {
+        const { requestMeetingStateReconciliation } = loadBackground(
+            undefined,
+            {
+                acceptedMeetingState: false,
+            }
+        );
+        queryTabs.mockResolvedValueOnce([{ id: 1 }]).mockResolvedValueOnce([]);
+        setEntityState.mockRejectedValueOnce(new Error("HA unavailable"));
+
+        await expect(requestMeetingStateReconciliation()).rejects.toThrow(
+            "HA unavailable"
+        );
+        await requestMeetingStateReconciliation();
+
+        expect(setEntityState.mock.calls.map(([_, value]) => value)).toEqual([
+            true,
+            false,
+        ]);
+    });
+
     it("renews the Home Assistant lease while a meeting remains open", async () => {
         const { requestMeetingStateReconciliation } = loadBackground(
             undefined,

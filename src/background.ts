@@ -59,10 +59,18 @@ async function reconcileMeetingState(forceSend: boolean) {
     }
 
     const config = await loadConfig();
-    await setEntityState(config, isInMeeting);
+    try {
+        await setEntityState(config, isInMeeting);
+    } catch (error) {
+        // HA may have applied this request even though the response was lost.
+        // Forget the acknowledged state so the next reconciliation resends the
+        // observed state, even when it equals the last acknowledged one.
+        await sessionStorage.remove(acceptedMeetingStateKey);
+        wasInMeeting = null;
+        throw error;
+    }
 
-    // Keep the old value until HA accepted the update, so a later event can
-    // retry a failed final off (or any other failed transition).
+    // Record the state only after HA accepted the update.
     await sessionStorage.set({ [acceptedMeetingStateKey]: isInMeeting });
     wasInMeeting = isInMeeting;
 }
