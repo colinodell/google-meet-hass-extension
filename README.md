@@ -27,10 +27,12 @@ Keep the installed unpacked directory at the same absolute path. Do not remove
 and reinstall the extension, or load each version from a new directory: Chrome
 uses the extension ID to keep its settings.
 
-Build the new version, then update the existing installation in place:
+Build the new version in a **separate checkout** — clone or download the
+repository somewhere else and run `yarn install && yarn build` there. Then run
+the updater from that separate checkout, not from the one whose `dist` folder
+you installed:
 
 ```sh
-yarn build
 node scripts/update-unpacked.cjs /absolute/path/to/installed-extension EXTENSION_ID
 ```
 
