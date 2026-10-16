@@ -20,7 +20,13 @@ if (previous.name !== next.name || target === source) {
 // A newly added key would change an existing path-derived ID. Keep its identity.
 if (previous.key) next.key = previous.key;
 else delete next.key;
-const identity = previous.key ? Buffer.from(previous.key, 'base64') : Buffer.from(target);
+// Chrome derives a path-based ID from the raw bytes of
+// crx_file::id_util::MaybeNormalizePath(path).value(): UTF-16LE on Windows
+// (whose FilePath is wide, with an uppercased drive letter), UTF-8 elsewhere.
+const win32 = process.platform === 'win32';
+const normalizedPath = win32 ? target.replace(/^[a-z]:/, (drive) => drive.toUpperCase()) : target;
+const identity = previous.key ? Buffer.from(previous.key, 'base64')
+    : Buffer.from(normalizedPath, win32 ? 'utf16le' : 'utf8');
 const id = crypto.createHash('sha256').update(identity).digest('hex').slice(0, 32)
     .replace(/[0-9a-f]/g, (n) => String.fromCharCode(97 + parseInt(n, 16)));
 if (id !== expectedId) throw new Error(`Wrong installation: this directory identifies as ${id}`);
