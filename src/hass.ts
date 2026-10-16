@@ -1,4 +1,5 @@
 import { Config } from "./config";
+import { isInMeeting } from "./meeting";
 
 export const HOME_ASSISTANT_REQUEST_TIMEOUT_MS = 10_000;
 
@@ -114,13 +115,16 @@ async function testConnectionAPI(config: Config): Promise<TestResult> {
 
 async function testConnectionWebhook(config: Config): Promise<TestResult> {
     try {
+        // Options page has "tabs" + Meet host_permissions; send observed state
+        // so Test never leaves an idle helper stuck "on".
+        const value = (await isInMeeting()) ? "on" : "off";
         const response = await fetchWithTimeout(config.webhook_url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                value: "on",
+                value,
             }),
         });
 

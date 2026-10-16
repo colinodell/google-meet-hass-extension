@@ -158,7 +158,7 @@ max_exceeded: silent
 
 ## Testing
 
-Simply create or join a Google Meet meeting in your browser, and the extension will automatically toggle your input boolean entity in Home Assistant.  The Chrome extension icon should display `mtg` if it detects that you are in a meeting, and the input boolean should toggle itself accordingly when you join/leave meetings.
+Simply create or join a Google Meet meeting in your browser, and the extension will automatically toggle your input boolean entity in Home Assistant.  The Chrome extension icon should display `mtg` if it detects that you are in a meeting, and the input boolean should toggle itself accordingly when you join/leave meetings. On the options page, **Test** in webhook mode POSTs the currently observed meeting state (`"on"` if any Meet call tab matches `https://meet.google.com/*-*-*`, otherwise `"off"`), so it never forces a light on when you are idle.
 
 ## Automation Ideas
 

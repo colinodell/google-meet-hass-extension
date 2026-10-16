@@ -1,5 +1,9 @@
 import { Config } from "./config";
-import { HOME_ASSISTANT_REQUEST_TIMEOUT_MS, setEntityState } from "./hass";
+import {
+    HOME_ASSISTANT_REQUEST_TIMEOUT_MS,
+    setEntityState,
+    testConnection,
+} from "./hass";
 
 const apiConfig: Config = {
     host: "https://ha.example.test",
@@ -115,5 +119,66 @@ describe("setEntityState", () => {
 
         await expect(request).rejects.toThrow("request aborted");
         expect(requestSignal?.aborted).toBe(true);
+    });
+});
+
+const webhookConfig: Config = {
+    ...apiConfig,
+    method: "webhook",
+    webhook_url: "https://ha.example.test/api/webhook/meet",
+};
+
+describe("testConnection webhook", () => {
+    const queryTabs = jest.fn();
+
+    beforeEach(() => {
+        global.fetch = jest
+            .fn()
+            .mockResolvedValue({ status: 200 }) as jest.Mock;
+        queryTabs.mockReset();
+        Object.assign(globalThis, {
+            chrome: {
+                tabs: {
+                    query: queryTabs,
+                },
+            },
+        });
+    });
+
+    afterEach(() => {
+        jest.resetAllMocks();
+    });
+
+    it("posts off when no Meet meeting tabs are open", async () => {
+        queryTabs.mockResolvedValue([]);
+
+        const result = await testConnection(webhookConfig);
+
+        expect(result.success).toBe(true);
+        expect(queryTabs).toHaveBeenCalledWith({
+            url: "https://meet.google.com/*-*-*",
+        });
+        expect(global.fetch).toHaveBeenCalledWith(
+            "https://ha.example.test/api/webhook/meet",
+            expect.objectContaining({
+                method: "POST",
+                body: JSON.stringify({ value: "off" }),
+            })
+        );
+    });
+
+    it("posts on when a Meet meeting tab is open", async () => {
+        queryTabs.mockResolvedValue([{ id: 1 }]);
+
+        const result = await testConnection(webhookConfig);
+
+        expect(result.success).toBe(true);
+        expect(global.fetch).toHaveBeenCalledWith(
+            "https://ha.example.test/api/webhook/meet",
+            expect.objectContaining({
+                method: "POST",
+                body: JSON.stringify({ value: "on" }),
+            })
+        );
     });
 });

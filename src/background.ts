@@ -1,5 +1,6 @@
 import { loadConfig } from "./config";
 import { setEntityState } from "./hass";
+import { isInMeeting } from "./meeting";
 
 let wasInMeeting: boolean | null = null;
 let reconciliationPromise: Promise<void> | null = null;
@@ -45,22 +46,19 @@ async function reconcileMeetingState(forceSend: boolean) {
     }
     await restoreAcceptedMeetingState();
 
-    const tabs = await chrome.tabs.query({
-        url: "https://meet.google.com/*-*-*",
-    });
-    const isInMeeting = tabs.length > 0;
+    const inMeeting = await isInMeeting();
 
-    updateBadge(isInMeeting);
+    updateBadge(inMeeting);
 
     // Heartbeats renew the HA lease while a meeting is open. Normal
     // reconciliations only send when the observed state differs.
-    if (wasInMeeting === isInMeeting && !(forceSend && isInMeeting)) {
+    if (wasInMeeting === inMeeting && !(forceSend && inMeeting)) {
         return;
     }
 
     const config = await loadConfig();
     try {
-        await setEntityState(config, isInMeeting);
+        await setEntityState(config, inMeeting);
     } catch (error) {
         // HA may have applied this request even though the response was lost.
         // Forget the acknowledged state so the next reconciliation resends the
@@ -71,8 +69,8 @@ async function reconcileMeetingState(forceSend: boolean) {
     }
 
     // Record the state only after HA accepted the update.
-    await sessionStorage.set({ [acceptedMeetingStateKey]: isInMeeting });
-    wasInMeeting = isInMeeting;
+    await sessionStorage.set({ [acceptedMeetingStateKey]: inMeeting });
+    wasInMeeting = inMeeting;
 }
 
 export function requestMeetingStateReconciliation(forceSend = false) {
