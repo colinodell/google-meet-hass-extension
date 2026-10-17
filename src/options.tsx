@@ -26,7 +26,7 @@ import {
     Stack,
     TextField,
 } from "@mui/material";
-import { testConnection, TestResult } from "./hass";
+import { TestResult } from "./hass";
 
 enum TestStatus {
     NotTested,
@@ -54,7 +54,21 @@ const Options = () => {
     const test = async () => {
         setTestStatus(TestStatus.Testing);
 
-        const result = await testConnection(config);
+        // The background worker serializes this with its own state updates.
+        const result: TestResult = await new Promise((resolve) =>
+            chrome.runtime.sendMessage(
+                { type: "testConnection", config },
+                (response?: TestResult) =>
+                    resolve(
+                        response ?? {
+                            success: false,
+                            message:
+                                "Unexpected error: " +
+                                chrome.runtime.lastError?.message,
+                        }
+                    )
+            )
+        );
 
         setTestResult(result);
         setTestStatus(TestStatus.Complete);

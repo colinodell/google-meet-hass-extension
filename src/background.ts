@@ -1,5 +1,5 @@
-import { loadConfig } from "./config";
-import { setEntityState } from "./hass";
+import { Config, loadConfig } from "./config";
+import { setEntityState, testConnection, TestResult } from "./hass";
 import { isInMeeting } from "./meeting";
 
 let wasInMeeting: boolean | null = null;
@@ -7,6 +7,12 @@ let reconciliationPromise: Promise<void> | null = null;
 let reconciliationRequested = false;
 let heartbeatRequested = false;
 let configurationChanged = false;
+
+interface PendingConnectionTest {
+    config: Config;
+    resolve: (result: TestResult) => void;
+}
+const pendingConnectionTests: PendingConnectionTest[] = [];
 
 const heartbeatAlarmName = "meeting-state-heartbeat";
 const acceptedMeetingStateKey = "acceptedMeetingState";
@@ -73,13 +79,33 @@ async function reconcileMeetingState(forceSend: boolean) {
     wasInMeeting = inMeeting;
 }
 
-export function requestMeetingStateReconciliation(forceSend = false) {
-    reconciliationRequested = true;
-    heartbeatRequested = heartbeatRequested || forceSend;
+async function runConnectionTest({ config, resolve }: PendingConnectionTest) {
+    resolve(await testConnection(config));
 
+    // A webhook test POSTs a state that may target the saved webhook, so the
+    // accepted state can no longer be trusted. Reassert the observed state.
+    if (config.method === "webhook") {
+        configurationChanged = true;
+        reconciliationRequested = true;
+    }
+}
+
+function hasPendingWork() {
+    return reconciliationRequested || pendingConnectionTests.length > 0;
+}
+
+// All Home Assistant writes, including the options page's Test, run through
+// this drain so a late request can never overwrite a newer observation.
+function drainPendingWork() {
     if (reconciliationPromise === null) {
         const drain = (async () => {
-            while (reconciliationRequested) {
+            while (hasPendingWork()) {
+                const test = pendingConnectionTests.shift();
+                if (test) {
+                    await runConnectionTest(test);
+                    continue;
+                }
+
                 reconciliationRequested = false;
                 const sendHeartbeat = heartbeatRequested;
                 heartbeatRequested = false;
@@ -93,8 +119,8 @@ export function requestMeetingStateReconciliation(forceSend = false) {
                 return;
             }
             reconciliationPromise = null;
-            if (reconciliationRequested) {
-                handleReconciliationRequest();
+            if (hasPendingWork()) {
+                drainPendingWork().catch(logReconciliationError);
             }
         };
         drain.then(finishDrain, finishDrain);
@@ -103,10 +129,26 @@ export function requestMeetingStateReconciliation(forceSend = false) {
     return reconciliationPromise;
 }
 
-function handleReconciliationRequest(forceSend = false) {
-    requestMeetingStateReconciliation(forceSend).catch((error) => {
-        console.error("Failed to reconcile Google Meet state", error);
+export function requestMeetingStateReconciliation(forceSend = false) {
+    reconciliationRequested = true;
+    heartbeatRequested = heartbeatRequested || forceSend;
+
+    return drainPendingWork();
+}
+
+export function requestConnectionTest(config: Config): Promise<TestResult> {
+    return new Promise((resolve) => {
+        pendingConnectionTests.push({ config, resolve });
+        drainPendingWork().catch(logReconciliationError);
     });
+}
+
+function logReconciliationError(error: unknown) {
+    console.error("Failed to reconcile Google Meet state", error);
+}
+
+function handleReconciliationRequest(forceSend = false) {
+    requestMeetingStateReconciliation(forceSend).catch(logReconciliationError);
 }
 
 function ensureHeartbeat() {
@@ -134,6 +176,13 @@ chrome.tabs.onRemoved.addListener(() => handleReconciliationRequest());
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     if (changeInfo.status === "complete") {
         handleReconciliationRequest();
+    }
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === "testConnection") {
+        requestConnectionTest(message.config).then(sendResponse);
+        return true;
     }
 });
 

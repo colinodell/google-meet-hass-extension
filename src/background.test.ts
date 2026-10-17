@@ -1,8 +1,9 @@
 const loadConfig = jest.fn().mockResolvedValue({});
 const setEntityState = jest.fn().mockResolvedValue(undefined);
+const testConnection = jest.fn();
 
 jest.mock("./config", () => ({ loadConfig }));
-jest.mock("./hass", () => ({ setEntityState }));
+jest.mock("./hass", () => ({ setEntityState, testConnection }));
 
 const heartbeatAlarmName = "meeting-state-heartbeat";
 const queryTabs = jest.fn();
@@ -27,6 +28,8 @@ function loadBackground(
     addStorageListener.mockReset();
     setEntityState.mockReset();
     setEntityState.mockResolvedValue(undefined);
+    testConnection.mockReset();
+    testConnection.mockResolvedValue({ success: true, message: "ok" });
     getAlarm.mockImplementation(
         (_name: string, callback: (alarm?: chrome.alarms.Alarm) => void) =>
             callback(existingAlarm)
@@ -59,6 +62,7 @@ function loadBackground(
         runtime: {
             onInstalled: { addListener: jest.fn() },
             onStartup: { addListener: addStartupListener },
+            onMessage: { addListener: jest.fn() },
         },
         tabs: {
             query: queryTabs,
@@ -280,6 +284,55 @@ describe("meeting state reconciliation", () => {
 
         expect(setEntityState).toHaveBeenCalledTimes(1);
         expect(queryTabs).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe("connection test", () => {
+    const webhookConfig = { method: "webhook", webhook_url: "http://hook" };
+
+    it("waits for an in-flight update before testing", async () => {
+        const { requestMeetingStateReconciliation, requestConnectionTest } =
+            loadBackground();
+        queryTabs.mockResolvedValue([{ id: 1 }]);
+        let release: () => void = () => undefined;
+        setEntityState.mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    release = resolve;
+                })
+        );
+
+        const pending = requestMeetingStateReconciliation();
+        const test = requestConnectionTest(webhookConfig as any);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(testConnection).not.toHaveBeenCalled();
+
+        release();
+        await pending;
+        await expect(test).resolves.toEqual({ success: true, message: "ok" });
+    });
+
+    it("reasserts the observed state after a webhook test", async () => {
+        const { requestMeetingStateReconciliation, requestConnectionTest } =
+            loadBackground(undefined, { acceptedMeetingState: true });
+        queryTabs.mockResolvedValue([{ id: 1 }]);
+
+        await requestConnectionTest(webhookConfig as any);
+        await requestMeetingStateReconciliation();
+
+        expect(setEntityState).toHaveBeenCalledTimes(1);
+        expect(setEntityState).toHaveBeenCalledWith({}, true);
+    });
+
+    it("keeps the accepted state after an API test", async () => {
+        const { requestMeetingStateReconciliation, requestConnectionTest } =
+            loadBackground(undefined, { acceptedMeetingState: true });
+        queryTabs.mockResolvedValue([{ id: 1 }]);
+
+        await requestConnectionTest({ method: "api" } as any);
+        await requestMeetingStateReconciliation();
+
+        expect(setEntityState).not.toHaveBeenCalled();
     });
 });
 
