@@ -1,20 +1,50 @@
 import { Config } from "./config";
+import { isInMeeting } from "./meeting";
+
+export const HOME_ASSISTANT_REQUEST_TIMEOUT_MS = 10_000;
+
+async function fetchWithTimeout(input: RequestInfo, init: RequestInit) {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+        () => controller.abort(),
+        HOME_ASSISTANT_REQUEST_TIMEOUT_MS
+    );
+
+    try {
+        return await fetch(input, { ...init, signal: controller.signal });
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+function requireSuccessfulResponse(response: Response, requestName: string) {
+    if (response.status < 200 || response.status >= 300) {
+        throw new Error(`${requestName} failed: HTTP ${response.status}`);
+    }
+}
 
 async function setEntityStateAPI(config: Config, newValue: boolean) {
-    await fetch(config.host + "/api/states/" + config.entity_id, {
-        method: "POST",
-        headers: {
-            Authorization: "Bearer " + config.token,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            state: newValue ? "on" : "off",
-        }),
-    });
+    const response = await fetchWithTimeout(
+        config.host +
+            "/api/services/homeassistant/" +
+            (newValue ? "turn_on" : "turn_off"),
+        {
+            method: "POST",
+            headers: {
+                Authorization: "Bearer " + config.token,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                entity_id: config.entity_id,
+            }),
+        }
+    );
+
+    requireSuccessfulResponse(response, "Home Assistant API request");
 }
 
 async function setEntityStateWebhook(config: Config, newValue: boolean) {
-    await fetch(config.webhook_url, {
+    const response = await fetchWithTimeout(config.webhook_url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -23,6 +53,8 @@ async function setEntityStateWebhook(config: Config, newValue: boolean) {
             value: newValue ? "on" : "off",
         }),
     });
+
+    requireSuccessfulResponse(response, "Home Assistant webhook request");
 }
 
 export async function setEntityState(config: Config, newValue: boolean) {
@@ -40,7 +72,7 @@ export interface TestResult {
 
 async function testConnectionAPI(config: Config): Promise<TestResult> {
     try {
-        const { status } = await fetch(
+        const { status } = await fetchWithTimeout(
             config.host + "/api/states/" + config.entity_id,
             {
                 method: "GET",
@@ -83,13 +115,15 @@ async function testConnectionAPI(config: Config): Promise<TestResult> {
 
 async function testConnectionWebhook(config: Config): Promise<TestResult> {
     try {
-        const response = await fetch(config.webhook_url, {
+        // Send the observed state so Test never leaves an idle helper stuck "on".
+        const value = (await isInMeeting()) ? "on" : "off";
+        const response = await fetchWithTimeout(config.webhook_url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                value: "on",
+                value,
             }),
         });
 

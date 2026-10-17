@@ -10,15 +10,36 @@ See [my blog post for more details](https://www.colinodell.com/blog/202207/diy-o
 
 ## Installation
 
-You can install this via the Chrome Web Store here: https://chrome.google.com/webstore/detail/google-meet-%3C%3E-home-assis/gghhlbjdgdemfjmkdfoiebpobebkkccm?hl=en&authuser=0
+Build and install the extension from source:
 
-Or you can download and build it yourself:
-
-1. Download this project
+1. Download this project from GitHub
 2. Run `yarn install && yarn build` in the repo root
 3. Visit [`chrome://extensions`](chrome://extensions) in your browser
 4. Enable Developer mode
 5. Click on "Load unpacked extension" and select the `dist` folder that yarn built
+
+If you need a portable build artifact, zip the generated `dist` directory after
+building and load the unpacked contents of that archive.
+
+## Updating without losing settings
+
+Keep the installed unpacked directory at the same absolute path. Do not remove
+and reinstall the extension, or load each version from a new directory: Chrome
+uses the extension ID to keep its settings.
+
+Build the new version in a **separate checkout** — clone or download the
+repository somewhere else and run `yarn install && yarn build` there. Then run
+the updater from that separate checkout, not from the one whose `dist` folder
+you installed:
+
+```sh
+node scripts/update-unpacked.cjs /absolute/path/to/installed-extension EXTENSION_ID
+```
+
+Copy the ID and directory from the existing extension's Details page. The
+updater checks their identity, preserves its manifest key, and backs up the
+previous code. It does not read or write browser settings, tokens or cookies. Then
+click **Reload** on that same extension in `chrome://extensions`.
 
 ## Configuration
 
@@ -63,11 +84,81 @@ automation:
 
 The webhook URL would be: `https://your-ha-domain.com/api/webhook/google_meet_status`
 
+### Reliable cleanup when Chrome closes
+
+Chrome may terminate the extension before its final Home Assistant request
+finishes. To ensure the input boolean does not remain on after the browser
+closes, add the automation below in Home Assistant and replace
+`input_boolean.in_meeting` with the entity you configured in the extension
+(API method) or the entity your webhook automation turns on and off (webhook
+method, where the extension itself only stores the webhook URL). This is
+required for reliable cleanup with either the API or webhook method.
+
+The extension sends an `on` heartbeat once per minute while a meeting tab is
+open. Each heartbeat restarts this five-minute lease. Closing the last meeting
+tab normally sends `off` immediately; if Chrome exits before that request is
+delivered, Home Assistant turns the input boolean off when the lease expires.
+
+```yaml
+alias: Google Meet stale session guard
+id: google_meet_stale_session_guard
+triggers:
+  - trigger: event
+    event_type: call_service
+    event_data:
+      domain: homeassistant
+      service: turn_on
+      service_data:
+        entity_id: input_boolean.in_meeting
+  - trigger: event
+    event_type: call_service
+    event_data:
+      domain: homeassistant
+      service: turn_on
+      service_data:
+        entity_id:
+          - input_boolean.in_meeting
+  - trigger: event
+    event_type: call_service
+    event_data:
+      domain: input_boolean
+      service: turn_on
+      service_data:
+        entity_id: input_boolean.in_meeting
+  - trigger: event
+    event_type: call_service
+    event_data:
+      domain: input_boolean
+      service: turn_on
+      service_data:
+        entity_id:
+          - input_boolean.in_meeting
+  - trigger: state
+    entity_id: input_boolean.in_meeting
+    to: "on"
+  - trigger: homeassistant
+    event: start
+conditions:
+  - condition: state
+    entity_id: input_boolean.in_meeting
+    state: "on"
+actions:
+  - delay: "00:05:00"
+  - condition: state
+    entity_id: input_boolean.in_meeting
+    state: "on"
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.in_meeting
+mode: restart
+max_exceeded: silent
+```
+
 ![](screenshot.png)
 
 ## Testing
 
-Simply create or join a Google Meet meeting in your browser, and the extension will automatically toggle your input boolean entity in Home Assistant.  The Chrome extension icon should display `mtg` if it detects that you are in a meeting, and the input boolean should toggle itself accordingly when you join/leave meetings.
+Simply create or join a Google Meet meeting in your browser, and the extension will automatically toggle your input boolean entity in Home Assistant.  The Chrome extension icon should display `mtg` if it detects that you are in a meeting, and the input boolean should toggle itself accordingly when you join/leave meetings. On the options page, **Test** in webhook mode POSTs the currently observed meeting state (`"on"` if any Meet call tab matches `https://meet.google.com/*-*-*`, otherwise `"off"`), so it never forces a light on when you are idle.
 
 ## Automation Ideas
 
@@ -77,7 +168,7 @@ Personally, I've repurposed an older [Adafruit Weather Lamp](https://learn.adafr
 
 ## FAQs
 
-**Can I just download this from the Chrome store?** Yes you can! https://chrome.google.com/webstore/detail/google-meet-%3C%3E-home-assis/gghhlbjdgdemfjmkdfoiebpobebkkccm?hl=en&authuser=0
+**Can I just download this from the Chrome store?** The store listing is currently unavailable. Build and load the extension from source using the [installation steps above](#installation).
 
 **Does this support other browsers and/or meeting providers?** No, and I don't have plans to do so, but PRs to add support are certainly welcome!
 

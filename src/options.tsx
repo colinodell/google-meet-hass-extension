@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
-import { Config, defaultConfig, loadConfig, saveConfig, UpdateMethod } from "./config";
+import {
+    Config,
+    defaultConfig,
+    loadConfig,
+    saveConfig,
+    UpdateMethod,
+} from "./config";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import LoadingButton from "@mui/lab/LoadingButton";
@@ -20,7 +26,7 @@ import {
     Stack,
     TextField,
 } from "@mui/material";
-import { testConnection, TestResult } from "./hass";
+import { TestResult } from "./hass";
 
 enum TestStatus {
     NotTested,
@@ -48,7 +54,21 @@ const Options = () => {
     const test = async () => {
         setTestStatus(TestStatus.Testing);
 
-        const result = await testConnection(config);
+        // The background worker serializes this with its own state updates.
+        const result: TestResult = await new Promise((resolve) =>
+            chrome.runtime.sendMessage(
+                { type: "testConnection", config },
+                (response?: TestResult) =>
+                    resolve(
+                        response ?? {
+                            success: false,
+                            message:
+                                "Unexpected error: " +
+                                chrome.runtime.lastError?.message,
+                        }
+                    )
+            )
+        );
 
         setTestResult(result);
         setTestStatus(TestStatus.Complete);
@@ -67,29 +87,59 @@ const Options = () => {
 
     return (
         <>
-            <Stack spacing={2}>
-                <Stack direction="row" spacing={2}>
+            <Stack
+                spacing={2}
+                sx={{
+                    boxSizing: "border-box",
+                    minWidth: 420,
+                    maxWidth: 560,
+                    p: 2,
+                }}
+            >
+                <Stack direction="row" spacing={2} alignItems="center">
                     <img src="icon48.png" alt="Logo" />
-                    <h1>Google Meet &lt;=&gt; Home Assistant Configuration</h1>
+                    <Box
+                        component="h1"
+                        sx={{
+                            fontSize: "1.25rem",
+                            lineHeight: 1.2,
+                            m: 0,
+                        }}
+                    >
+                        Google Meet &lt;=&gt; Home Assistant Configuration
+                    </Box>
                 </Stack>
                 <Divider />
                 <Stack
                     spacing={2}
                     sx={{
-                        width: 400,
+                        width: "100%",
                     }}
                 >
                     <Box>
                         <FormControl component="fieldset">
-                            <FormLabel component="legend">Update Method</FormLabel>
+                            <FormLabel component="legend">
+                                Update Method
+                            </FormLabel>
                             <RadioGroup
                                 value={config.method}
                                 onChange={(e) =>
-                                    setConfig({ ...config, method: e.target.value as UpdateMethod })
+                                    setConfig({
+                                        ...config,
+                                        method: e.target.value as UpdateMethod,
+                                    })
                                 }
                             >
-                                <FormControlLabel value="api" control={<Radio />} label="API" />
-                                <FormControlLabel value="webhook" control={<Radio />} label="Webhook" />
+                                <FormControlLabel
+                                    value="api"
+                                    control={<Radio />}
+                                    label="API"
+                                />
+                                <FormControlLabel
+                                    value="webhook"
+                                    control={<Radio />}
+                                    label="Webhook"
+                                />
                             </RadioGroup>
                         </FormControl>
                     </Box>
@@ -101,7 +151,10 @@ const Options = () => {
                                 label="Home Assistant Base URL"
                                 value={config.host}
                                 onChange={(e) =>
-                                    setConfig({ ...config, host: e.target.value })
+                                    setConfig({
+                                        ...config,
+                                        host: e.target.value,
+                                    })
                                 }
                                 helperText="No trailing slashes; ex: http://homeassistant.local"
                                 variant="standard"
@@ -117,7 +170,10 @@ const Options = () => {
                                 label="Webhook URL"
                                 value={config.webhook_url}
                                 onChange={(e) =>
-                                    setConfig({ ...config, webhook_url: e.target.value })
+                                    setConfig({
+                                        ...config,
+                                        webhook_url: e.target.value,
+                                    })
                                 }
                                 helperText="Full webhook URL including entity ID; ex: https://ha.example.com/api/webhook/entity_webhook"
                                 variant="standard"
@@ -135,7 +191,10 @@ const Options = () => {
                                 label="Authorization Token"
                                 value={config.token}
                                 onChange={(e) =>
-                                    setConfig({ ...config, token: e.target.value })
+                                    setConfig({
+                                        ...config,
+                                        token: e.target.value,
+                                    })
                                 }
                                 variant="standard"
                                 fullWidth
